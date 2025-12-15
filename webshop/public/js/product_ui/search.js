@@ -1,9 +1,25 @@
 webshop.ProductSearch = class {
 	constructor(opts) {
-		/* Options: search_box_id (for custom search box) */
+		/* Options:
+		 * - search_box_id (for custom search box)
+		 * - search_area_id (for custom dropdown container)
+		 * - results_container_id (optional; for multiple instances on a page)
+		 * - products_scroll_id (optional; for multiple instances on a page)
+		 * - recents_id (optional; for multiple instances on a page)
+		 */
 		$.extend(this, opts);
 		this.MAX_RECENT_SEARCHES = 4;
 		this.search_box_id = this.search_box_id || "#search-box";
+		this.search_area_id = this.search_area_id || "#dropdownMenuSearch";
+		const default_suffix = (this.search_area_id || "").replace(/^#/, "") || "dropdownMenuSearch";
+		this.results_container_id =
+			this.results_container_id ||
+			(this.search_area_id === "#dropdownMenuSearch" ? "search-results-container" : `${default_suffix}-results`);
+		this.products_scroll_id =
+			this.products_scroll_id ||
+			(this.search_area_id === "#dropdownMenuSearch" ? "product-scroll" : `${default_suffix}-product-scroll`);
+		this.recents_id =
+			this.recents_id || (this.search_area_id === "#dropdownMenuSearch" ? "recents" : `${default_suffix}-recents`);
 		this.searchBox = $(this.search_box_id);
 
 		this.setupSearchDropDown();
@@ -11,7 +27,7 @@ webshop.ProductSearch = class {
 	}
 
 	setupSearchDropDown() {
-		this.search_area = $("#dropdownMenuSearch");
+		this.search_area = $(this.search_area_id);
 		this.setupSearchResultContainer();
 		this.populateRecentSearches();
 	}
@@ -28,7 +44,7 @@ webshop.ProductSearch = class {
 		// Click can happen anywhere on the page
 		$("body").on("click", (e) => {
 			let searchEvent = $(e.target).closest(this.search_box_id).length;
-			let resultsEvent = $(e.target).closest('#search-results-container').length;
+			let resultsEvent = $(e.target).closest(`#${this.results_container_id}`).length;
 			let isResultHidden = this.search_dropdown.hasClass("hidden");
 
 			if (!searchEvent && !resultsEvent && !isResultHidden) {
@@ -77,13 +93,14 @@ webshop.ProductSearch = class {
 	}
 
 	setupSearchResultContainer() {
+		let aria_labelledby = this.search_area.attr("id") || (this.search_area_id || "").replace(/^#/, "");
 		this.search_dropdown = this.search_area.append(`
 			<div class="overflow-hidden shadow dropdown-menu w-100 hidden"
-				id="search-results-container"
-				aria-labelledby="dropdownMenuSearch"
+				id="${this.results_container_id}"
+				aria-labelledby="${aria_labelledby}"
 				style="display: flex; flex-direction: column;">
 			</div>
-		`).find("#search-results-container");
+		`).find(`#${this.results_container_id}`);
 
 		this.setupCategoryContainer();
 		this.setupProductsContainer();
@@ -92,11 +109,11 @@ webshop.ProductSearch = class {
 
 	setupProductsContainer() {
 		this.products_container = this.search_dropdown.append(`
-			<div id="product-results mt-2">
-				<div id="product-scroll" style="overflow: scroll; max-height: 300px">
+			<div class="product-results mt-2">
+				<div id="${this.products_scroll_id}" style="overflow: scroll; max-height: 300px">
 				</div>
 			</div>
-		`).find("#product-scroll");
+		`).find(`#${this.products_scroll_id}`);
 	}
 
 	setupCategoryContainer() {
@@ -118,9 +135,9 @@ webshop.ProductSearch = class {
 		`).find(".recent-searches");
 
 		this.recents_container = $recents_section.append(`
-			<div id="recents" style="padding: .25rem 0 1rem 0;">
+			<div id="${this.recents_id}" style="padding: .25rem 0 1rem 0;">
 			</div>
-		`).find("#recents");
+		`).find(`#${this.recents_id}`);
 	}
 
 	getRecentSearches() {
@@ -128,11 +145,11 @@ webshop.ProductSearch = class {
 	}
 
 	attachEventListenersToChips() {
-		let me  = this;
-		const chips = $(".recent-search");
-		window.chips = chips;
+		let me = this;
+		const chips = this.recents_container.find(".recent-search");
 
-		for (let chip of chips) {
+		for (let i = 0; i < chips.length; i++) {
+			const chip = chips[i];
 			chip.addEventListener("click", () => {
 				me.searchBox[0].value = chip.innerText.trim();
 
@@ -164,7 +181,7 @@ webshop.ProductSearch = class {
 		let recents = this.getRecentSearches();
 
 		if (!recents.length) {
-			this.recents_container.html(`<span class=""text-muted">${ __("No searches yet.") }</span>`);
+			this.recents_container.html(`<span class="text-muted">${ __("No searches yet.") }</span>`);
 			return;
 		}
 
@@ -174,7 +191,7 @@ webshop.ProductSearch = class {
 				<div class="recent-search mr-1" style="font-size: 13px">
 					<span class="mr-2">
 						<svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-							<path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="var(--gray-500)"" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="var(--gray-500)" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 							<path d="M8.00027 5.20947V8.00017L10 10" stroke="var(--gray-500)" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 						</svg>
 					</span>
@@ -235,7 +252,7 @@ webshop.ProductSearch = class {
 				<a href="/${category.route}" class="btn btn-sm category-chip mr-2 mb-2"
 					style="font-size: 13px" role="button">
 				${ category.name }
-				</button>
+				</a>
 			`;
 		});
 

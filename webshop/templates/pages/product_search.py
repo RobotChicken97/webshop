@@ -25,7 +25,17 @@ def get_context(context):
 
 @frappe.whitelist(allow_guest=True)
 def get_product_list(search=None, start=0, limit=12):
-	data = get_product_data(search, start, limit)
+	# When Redisearch is enabled, use it for Website search results so barcode lookups behave
+	# the same across domains and match the navbar suggestions.
+	if search and is_redisearch_enabled():
+		# Redisearch doesn't support offset natively in our helper; fetch up to (start+limit)
+		# and slice locally.
+		result = product_search(search, limit=cint(start) + cint(limit), fuzzy_search=False)
+		data = (result.get("results") or [])[cint(start) : cint(start) + cint(limit)]
+		# Redisearch returns plain dicts; downstream expects frappe._dict with attribute access.
+		data = [frappe._dict(d) for d in data]
+	else:
+		data = get_product_data(search, start, limit)
 
 	for item in data:
 		set_product_info_for_website(item)
@@ -50,7 +60,11 @@ def get_product_data(search=None, start=0, limit=12):
 	if search:
 		query += """ and (item_name like %(search)s
 				or web_item_name like %(search)s
+				or item_code like %(search)s
+				or barcodes like %(search)s
 				or brand like %(search)s
+				or description like %(search)s
+				or short_description like %(search)s
 				or web_long_description like %(search)s)"""
 		search = "%" + cstr(search) + "%"
 
