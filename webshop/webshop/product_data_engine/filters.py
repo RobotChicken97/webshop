@@ -75,6 +75,9 @@ class ProductFiltersBuilder:
 			if None in values:
 				values.remove(None)
 
+			# Sort alphabetically for consistent display
+			values = sorted(values, key=lambda x: (x or "").lower())
+
 			if values:
 				filter_data.append([df, values])
 
